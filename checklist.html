@@ -9,29 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.3.0/milligram.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.3.0/milligram.min.css">
 
-    <script>
-      const sections = [
-        {
-          title: "Features/Functionality",
-          items: [
-            "Support Multiple Sections",
-            "Checkboxes for each item",
-            "Easy to edit without messing with html"
-          ]
-        },
-        {
-          title: "DX",
-          items: [
-            "One file",
-            "No build step",
-            "Can open directly from file - no webserver needed",
-            "Lightly styled"
-          ]
-        }
-      ];
-    </script>
-
     <style>
+      body {
+        margin: 10px;
+      }
+
       .section {
         margin-left: 10px;
         margin-top: 20px;
@@ -55,31 +37,175 @@
 
   </head>
   <body>
-    <div id="checklist_container"></div>
+    <div id="app_container"></div>
 
     <script type="text/babel">
+      const CHECKLIST_MODE = {
+        VIEW: 1,
+        EDIT: 2,
+      }
+
+      const APP_STATE = {
+        INTRO: 1,
+        CHECKLIST: 2,
+      }
+
+      const checklistKey = name => `checklist_${name}`
+      const loadChecklist = name => {
+        const raw = localStorage.getItem(checklistKey(name))
+        if (raw) {
+          try {
+            return JSON.parse(raw)
+          } catch (e) {
+            console.error("Failed to load checklist", e)
+          }
+        }
+      }
+      const saveChecklist = (name, checklist) => {
+        checklist.editedTime = new Date()
+        localStorage.setItem(checklistKey(name), JSON.stringify(checklist))
+      }
+      const getNewChecklist = () => {
+        return {
+          version:  '1',
+          sections: defaultSections,
+          createdTime: new Date(),
+          editedTime: new Date(),
+        }
+      }
+
+      const defaultSections = [
+        {
+          title: "Features/Functionality",
+          items: [
+            { label: "Support Multiple Sections" },
+            { label: "Checkboxes for each item" },
+            { label: "Easy to edit without messing with html" },
+          ]
+        },
+        {
+          title: "DX",
+          items: [
+            { label: "One file" },
+            { label: "No build step" },
+            { label: "Can open directly from file - no webserver needed" },
+            { label: "Lightly styled" },
+          ]
+        }
+      ];
+
+
       const Section = (props) => (
         <div className="section">
           <h4 className="heading">{props.title}</h4>
           {props.items.map((item, i) => (
             <label key={i} className="checkbox-wrapper">
-              <input type="checkbox" />
-              {item}
+              <input type="checkbox" checked={!!item.checked} onChange={() => props.toggleItem(i)}/>
+              {item.label}
             </label>
           ))}
         </div>
       )
 
-      const Checklist = (props) => (
-        <React.Fragment>
-          {props.sections.map((section, i) => (
-            <Section key={i} title={section.title} items={section.items} />
-          ))}
-        </React.Fragment>
-      )
+      const Checklist = (props) => {
+        const getItemToggle = (sectionIndex) => {
+          return (itemIndex) => {
+            const newSections = [...props.sections]
+            const newSection = {...newSections[sectionIndex]}
+            const newItem = {
+              ...newSection.items[itemIndex],
+              checked: !newSection.items[itemIndex].checked
+            }
+            newSection.items[itemIndex] = newItem
+            newSections[sectionIndex] = newSection
+            props.updateSections(newSections)
+          }
+        }
 
-      const domContainer = document.querySelector('#checklist_container')
-      ReactDOM.render(React.createElement(Checklist, {sections}), domContainer)
+        return (
+          <React.Fragment>
+            <h2>{props.name}</h2>
+            {props.sections.map((section, sectionIndex) => (
+              <Section
+                key={sectionIndex}
+                title={section.title}
+                items={section.items}
+                toggleItem={getItemToggle(sectionIndex)}
+              />
+            ))}
+          </React.Fragment>
+        )
+      }
+
+      const App = (props) => {
+        // decide what to do based on url
+        const params = new URLSearchParams(location.search)
+
+        const name = params.get('name') || 'default'
+        const appState = name === 'default' ? APP_STATE.INTRO : APP_STATE.CHECKLIST
+        const editMode = [true, 'true', 1].includes(params.get('edit'))
+
+
+        if (appState === APP_STATE.INTRO) {
+          return (
+            <div>
+              <h5>Welcome to One Page Checklist</h5>
+              <p>
+                The point of this project is to have a dead-simple way to show
+                a checklist on your screen. I originally created this to make it
+                easy to show visually where I was in a demo while recording a
+                video but you can use it for whatever you like.
+              </p>
+              <p>
+                You can visit this page online or open it from a file locally (no
+                webserver necessary) but Each checklist lives on YOUR computer in
+                your browser's local storage. You can create or view a checklist by
+                entering a name below.
+              </p>
+              <form onSubmit={() => {
+                const newName = document.getElementById('checklist_name').value
+                const newUrl = new URL(window.location)
+                newUrl.search = `name=${newName}`
+                window.location.assign(newUrl.href)
+                return false // dont let form ruin our location change
+              }}>
+                <fieldset>
+                  <label htmlFor='cehcklist_name'>Checklist Name</label>
+                  <input id='checklist_name' type='text' placeholder='my next great checklist' />
+                  <button className='button button-outline'>Create/View Checklist</button>
+                </fieldset>
+              </form>
+            </div>
+          )
+        }
+
+        // look for checklist contents in localstorage
+        const startingChecklist = loadChecklist(name) || getNewChecklist();
+        const [checklist, setChecklist] = React.useState(startingChecklist);
+
+        const updateSections = (newSections) => {
+          const newChecklist = {...checklist};
+          newChecklist.sections = newSections;
+          saveChecklist(name, newChecklist)
+          setChecklist(newChecklist)
+        }
+
+        if (!checklist) {
+          return <h3>Reading Local Storage...</h3>
+        }
+
+        return (
+          <Checklist
+            name={name}
+            sections={checklist.sections}
+            updateSections={updateSections}
+            mode={(!checklist || editMode) ? CHECKLIST_MODE.EDIT : CHECKLIST_MODE.VIEW}
+          />
+        )
+      }
+
+      const domContainer = document.querySelector('#app_container')
+      ReactDOM.render(React.createElement(App), domContainer)
     </script>
 
   </body>
