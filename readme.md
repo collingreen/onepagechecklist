@@ -10,6 +10,6 @@ anything, you do not need a webserver, you do not need anything at all.
 
 ## Instant Start
 
-Step 1: Open checklist.html with your browser
-Step 2: There is no step 2!
+- Step 1: Open index.html with your browser
+- Step 2: There is no step 2!
 
