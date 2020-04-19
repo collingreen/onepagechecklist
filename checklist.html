@@ -14,6 +14,42 @@
         margin: 10px;
       }
 
+      .menu {
+        float: right;
+      }
+
+      .menu button.toggle-button {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        margin-bottom: 0;
+        float: right;
+        height: 38px;
+      }
+
+      .menu .button-wrapper {
+        display: block;
+        height: 38px;
+        border-top-left-radius: 0.4rem;
+        border-bottom-left-radius: 0.4rem;
+        border-bottom-right-radius: 0.4rem;
+      }
+
+      .menu.open button.toggle-button {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        margin-bottom: 0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .menu-container {
+        background-color: #e3e1e4;
+      }
+
+      .menu-container > * {
+        display: block;
+      }
+
       .section {
         margin-left: 10px;
         margin-top: 20px;
@@ -33,6 +69,18 @@
         margin-top: 0;
         vertical-align: middle;
       }
+
+      .button.button-delete {
+        padding: 0.5rem;
+        margin: 0;
+        color: red !important;
+        height: 1rem;
+        line-height: 1rem;
+      }
+
+      .error {
+        color: red;
+      }
     </style>
 
   </head>
@@ -40,10 +88,10 @@
     <div id="app_container"></div>
 
     <script type="text/babel">
-      const CHECKLIST_MODE = {
-        VIEW: 1,
-        EDIT: 2,
-      }
+      // TODO: re-order items -- simple way? dont want to include dnd
+      // TODO: copy checklist to clipboard
+      // TODO: paste lists from clipboard
+      // TODO: autofocus AND autohighlight in edited text
 
       const APP_STATE = {
         INTRO: 1,
@@ -65,9 +113,13 @@
         checklist.editedTime = new Date()
         localStorage.setItem(checklistKey(name), JSON.stringify(checklist))
       }
-      const getNewChecklist = () => {
+      const deleteChecklist = (name) => {
+        localStorage.removeItem(checklistKey(name))
+      }
+      const getNewChecklist = (name) => {
         return {
           version:  '1',
+          title: `New Checklist - ${name}`,
           sections: defaultSections,
           createdTime: new Date(),
           editedTime: new Date(),
@@ -76,34 +128,84 @@
 
       const defaultSections = [
         {
-          title: "Features/Functionality",
+          title: "Things to Know",
           items: [
-            { label: "Support Multiple Sections" },
-            { label: "Checkboxes for each item" },
-            { label: "Easy to edit without messing with html" },
-          ]
-        },
-        {
-          title: "DX",
-          items: [
-            { label: "One file" },
-            { label: "No build step" },
-            { label: "Can open directly from file - no webserver needed" },
-            { label: "Lightly styled" },
+            { label: "Use menu on the right to switch to edit mode" },
+            { label: "You can add, edit, and remove both items and sections" },
+            { label: "In edit mode, double click text to edit" },
+            { label: "All data is stored in YOUR browser" },
+            { label: "Can access this page online or locally and see the same data" },
           ]
         }
-      ];
+      ]
 
+      const EditableText = (props) => {
+        const [editing, setEditing] = React.useState(false)
+        const [text, setText] = React.useState(props.text)
+
+        const finishEditing = () => {
+          props.onChange && props.onChange(text)
+          setEditing(false)
+        }
+
+        if (editing) {
+          return (
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onBlur={finishEditing}
+              onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
+              autoFocus={true}
+            />
+          )
+        }
+
+        return (
+          <span onDoubleClick={() => (props.editable && setEditing(true))}>{props.text}</span>
+        )
+      }
 
       const Section = (props) => (
         <div className="section">
-          <h4 className="heading">{props.title}</h4>
+          <h4 className="heading">
+            <EditableText
+              text={props.title}
+              editable={props.editMode}
+              onChange={props.editSectionTitle}
+            />
+            {props.editMode && (
+              <button className="button button-clear button-delete" onClick={props.deleteSection}>
+                X
+              </button>
+            )}
+          </h4>
           {props.items.map((item, i) => (
             <label key={i} className="checkbox-wrapper">
-              <input type="checkbox" checked={!!item.checked} onChange={() => props.toggleItem(i)}/>
-              {item.label}
+              <input
+                type="checkbox"
+                checked={!!item.checked}
+                disabled={props.editMode}
+                onChange={
+                  () => !props.editMode && props.toggleItem(i)
+                }
+              />
+              <EditableText
+                text={item.label}
+                editable={props.editMode}
+                onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
+              />
+              {props.editMode && (
+                <button className="button button-clear button-delete" onClick={() => props.deleteItem(i)}>
+                  X
+                </button>
+              )}
             </label>
           ))}
+          {props.editMode && (
+            <button className="button button-clear" onClick={props.addItem}>
+              + Add Item
+            </button>
+          )}
         </div>
       )
 
@@ -122,19 +224,132 @@
           }
         }
 
+        const getItemDelete = (sectionIndex) => {
+          return (itemIndex) => {
+            const newSections = [...props.sections]
+            const newSection = {...newSections[sectionIndex]}
+            newSection.items.splice(itemIndex, 1)
+            newSections[sectionIndex] = newSection
+            props.updateSections(newSections)
+          }
+        }
+
+        const getItemAdd = (sectionIndex) => {
+          return () => {
+            const newSections = [...props.sections]
+            const newSection = {...newSections[sectionIndex]}
+            newSection.items.push({ label: "New Item" })
+            newSections[sectionIndex] = newSection
+            props.updateSections(newSections)
+          }
+        }
+
+        const getItemEdit = (sectionIndex) => {
+          return (itemIndex, itemPartial) => {
+            const newSections = [...props.sections]
+            const newSection = {...newSections[sectionIndex]}
+            newSection.items[itemIndex] = {
+              ...newSection.items[itemIndex],
+              ...itemPartial,
+            }
+            newSections[sectionIndex] = newSection
+            props.updateSections(newSections)
+          }
+        }
+
+        const deleteSection = (sectionIndex) => {
+          props.updateSections([
+            ...props.sections.slice(0, sectionIndex),
+            ...props.sections.slice(sectionIndex + 1),
+          ])
+        }
+
+        const addSection = () => {
+          props.updateSections([
+            ...props.sections,
+            {
+              title: "New Section",
+              items: [
+                { label: "New Item" }
+              ],
+            }
+          ])
+        }
+
+        const editSection = (sectionIndex, section) => {
+          const newSections = [...props.sections]
+          newSections[sectionIndex] = section
+          props.updateSections(newSections)
+        }
+
         return (
           <React.Fragment>
-            <h2>{props.name}</h2>
+            <h2>
+              <EditableText
+                text={props.title}
+                editable={props.editMode}
+                onChange={props.updateChecklistTitle}
+              />
+            </h2>
             {props.sections.map((section, sectionIndex) => (
               <Section
                 key={sectionIndex}
                 title={section.title}
                 items={section.items}
                 toggleItem={getItemToggle(sectionIndex)}
+                addItem={getItemAdd(sectionIndex)}
+                deleteItem={getItemDelete(sectionIndex)}
+                editItem={getItemEdit(sectionIndex)}
+                deleteSection={() => deleteSection(sectionIndex)}
+                editSectionTitle={
+                  (newTitle) => editSection(sectionIndex, {...section, title: newTitle})
+                }
+                editMode={props.editMode}
               />
             ))}
+            {props.editMode && (
+               <button className="button button-clear" onClick={addSection}>
+                 + Add Section
+               </button>
+            )}
           </React.Fragment>
         )
+      }
+
+      const Menu = (props) => {
+        const [isOpen, setIsOpen] = React.useState(false);
+
+        const classNames = ["menu"];
+        if (isOpen) {
+          classNames.push("open");
+        }
+
+        return (
+          <div className={classNames.join(" ")}>
+            <div className="button-wrapper">
+              <button
+                className="button outlined-button toggle-button"
+                onClick={() => setIsOpen(!isOpen)}
+              >?</button>
+            </div>
+            {isOpen && (
+              <div className="menu-container">
+                <button
+                  className="button button-clear"
+                  onClick={() => props.setEditMode(!props.editMode)}
+                >Enable Edit Mode</button>
+                <button
+                  className="button button-clear"
+                  onClick={props.newChecklist}
+                >Create New Checklist</button>
+                <button
+                  className="button button-clear error"
+                  onClick={props.deleteChecklist}
+                >Delete Checklist</button>
+              </div>
+            )}
+          </div>
+        );
       }
 
       const App = (props) => {
@@ -143,8 +358,7 @@
 
         const name = params.get('name') || 'default'
         const appState = name === 'default' ? APP_STATE.INTRO : APP_STATE.CHECKLIST
-        const editMode = [true, 'true', 1].includes(params.get('edit'))
-
+        const [editMode, setEditMode] = React.useState(false);
 
         if (appState === APP_STATE.INTRO) {
           return (
@@ -162,15 +376,16 @@
                 your browser's local storage. You can create or view a checklist by
                 entering a name below.
               </p>
-              <form onSubmit={() => {
+              <form onSubmit={(e) => {
                 const newName = document.getElementById('checklist_name').value
                 const newUrl = new URL(window.location)
                 newUrl.search = `name=${newName}`
                 window.location.assign(newUrl.href)
+                e.preventDefault()
                 return false // dont let form ruin our location change
               }}>
                 <fieldset>
-                  <label htmlFor='cehcklist_name'>Checklist Name</label>
+                  <label htmlFor='checklist_name'>Create New Checklist</label>
                   <input id='checklist_name' type='text' placeholder='my next great checklist' />
                   <button className='button button-outline'>Create/View Checklist</button>
                 </fieldset>
@@ -180,27 +395,53 @@
         }
 
         // look for checklist contents in localstorage
-        const startingChecklist = loadChecklist(name) || getNewChecklist();
-        const [checklist, setChecklist] = React.useState(startingChecklist);
+        const startingChecklist = loadChecklist(name) || getNewChecklist(name)
+        const [checklist, setChecklist] = React.useState(startingChecklist)
 
         const updateSections = (newSections) => {
-          const newChecklist = {...checklist};
-          newChecklist.sections = newSections;
+          const newChecklist = {...checklist}
+          newChecklist.sections = newSections
           saveChecklist(name, newChecklist)
           setChecklist(newChecklist)
         }
 
-        if (!checklist) {
-          return <h3>Reading Local Storage...</h3>
+        const updateChecklistTitle = (newName) => {
+          const newChecklist = {...checklist, title: newName}
+          saveChecklist(name, newChecklist)
+          setChecklist(newChecklist)
+        }
+
+        const goToIndex = () => {
+          const url = new URL(window.location)
+          url.search = ''
+          url.hash = ''
+          window.location.assign(url.href)
         }
 
         return (
-          <Checklist
-            name={name}
-            sections={checklist.sections}
-            updateSections={updateSections}
-            mode={(!checklist || editMode) ? CHECKLIST_MODE.EDIT : CHECKLIST_MODE.VIEW}
-          />
+          <div>
+            <Menu
+              editMode={editMode}
+              setEditMode={setEditMode}
+              newChecklist={goToIndex}
+              deleteChecklist={() => {
+                const text =
+                  'Are you sure you want to delete your checklist? This cannot be undone.'
+                if (window.confirm(text)) {
+                  deleteChecklist(name)
+                  goToIndex()
+                }
+              }}
+            />
+            <Checklist
+              name={name}
+              title={checklist.title || name}
+              sections={checklist.sections}
+              updateSections={updateSections}
+              updateChecklistTitle={updateChecklistTitle}
+              editMode={editMode}
+            />
+          </div>
         )
       }
 
