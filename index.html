@@ -164,7 +164,6 @@
       const existingChecklists = getExistingChecklists()
 
       const EditableText = (props) => {
-        const [editing, setEditing] = React.useState(false)
         const [text, setText] = React.useState(props.text)
 
         const finishEditing = () => {
@@ -173,10 +172,10 @@
           } else {
             props.onChange && props.onChange(text)
           }
-          setEditing(false)
+          props.setIsEditing(false)
         }
 
-        if (editing) {
+        if (props.isEditing) {
           return (
             <React.Fragment>
               <input
@@ -204,7 +203,7 @@
                     // do nothing - this will cause a blur and the blur handler will do the delete
                     // so we don't have to race these two events or let blur clobber the click
                     //props.onDelete()
-                    //setEditing(false)
+                    //props.setIsEditing(false)
                   }}
                 >
                   X
@@ -215,44 +214,58 @@
         }
 
         return (
-          <span onDoubleClick={() => (props.editable && setEditing(true))}>{props.text}</span>
+          <span onDoubleClick={() => (props.setIsEditing(true))}>{props.text}</span>
         )
       }
 
-      const Section = (props) => (
-        <div className="section">
-          <h4 className="heading">
-            <EditableText
-              text={props.title}
-              editable={true}
-              onChange={props.editSectionTitle}
-              onDelete={() => props.deleteSection()}
-            />
-          </h4>
-          {props.items.map((item, i) => (
-            <label key={i} className="checkbox-wrapper">
-              <input
-                type="checkbox"
-                checked={!!item.checked}
-                onChange={
-                  () => props.toggleItem(i)
-                }
-              />
+      const Section = (props) => {
+        const [isEditingTitle, setIsEditingTitle] = React.useState(false)
+        const [editingIndex, setEditingIndex] = React.useState()
+
+        const doAddItem = () => {
+          setEditingIndex(props.items.length)
+          props.addItem()
+        }
+
+        return (
+          <div className="section">
+            <h4 className="heading">
               <EditableText
-                text={item.label}
-                editable={true}
-                onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
-                onDelete={() => props.deleteItem(i)}
+                text={props.title}
+                onChange={props.editSectionTitle}
+                onDelete={() => props.deleteSection()}
+                isEditing={isEditingTitle}
+                setIsEditing={setIsEditingTitle}
               />
-            </label>
-          ))}
-          <button className="button button-clear" onClick={props.addItem}>
-            + Add Item
-          </button>
-        </div>
-      )
+            </h4>
+            {props.items.map((item, i) => (
+              <label key={i} className="checkbox-wrapper">
+                <input
+                  type="checkbox"
+                  checked={!!item.checked}
+                  onChange={
+                    () => props.toggleItem(i)
+                  }
+                />
+                <EditableText
+                  text={item.label}
+                  onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
+                  onDelete={() => props.deleteItem(i)}
+                  isEditing={i === editingIndex}
+                  setIsEditing={isEditing => setEditingIndex(isEditing ? i : undefined)}
+                />
+              </label>
+            ))}
+            <button className="button button-clear" onClick={() => doAddItem()}>
+              + Add Item
+            </button>
+          </div>
+        )
+      }
 
       const Checklist = (props) => {
+        const [isEditingTitle, setIsEditingTitle] = React.useState(false)
+
         const getItemToggle = (sectionIndex) => {
           return (itemIndex) => {
             const newSections = [...props.sections]
@@ -330,8 +343,9 @@
             <h2>
               <EditableText
                 text={props.title}
-                editable={true}
                 onChange={props.updateChecklistTitle}
+                isEditing={isEditingTitle}
+                setIsEditing={setIsEditingTitle}
               />
             </h2>
             {props.sections.map((section, sectionIndex) => (
