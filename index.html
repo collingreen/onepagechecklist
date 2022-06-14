@@ -135,9 +135,8 @@
         {
           title: "Things to Know",
           items: [
-            { label: "Use menu on the right to switch to edit mode" },
             { label: "You can add, edit, and remove both items and sections" },
-            { label: "In edit mode, double click text to edit" },
+            { label: "Double click text to edit or delete" },
             { label: "All data is stored in YOUR browser - there is no server or database" },
             { label: "Can access this page online or locally and see the same data" },
           ]
@@ -191,42 +190,35 @@
           <h4 className="heading">
             <EditableText
               text={props.title}
-              editable={props.editMode}
+              editable={true}
               onChange={props.editSectionTitle}
             />
-            {props.editMode && (
-              <button className="button button-clear button-delete" onClick={props.deleteSection}>
-                X
-              </button>
-            )}
+            <button className="button button-clear button-delete" onClick={props.deleteSection}>
+              X
+            </button>
           </h4>
           {props.items.map((item, i) => (
             <label key={i} className="checkbox-wrapper">
               <input
                 type="checkbox"
                 checked={!!item.checked}
-                disabled={props.editMode}
                 onChange={
-                  () => !props.editMode && props.toggleItem(i)
+                  () => props.toggleItem(i)
                 }
               />
               <EditableText
                 text={item.label}
-                editable={props.editMode}
+                editable={true}
                 onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
               />
-              {props.editMode && (
-                <button className="button button-clear button-delete" onClick={() => props.deleteItem(i)}>
-                  X
-                </button>
-              )}
+              <button className="button button-clear button-delete" onClick={() => props.deleteItem(i)}>
+                X
+              </button>
             </label>
           ))}
-          {props.editMode && (
-            <button className="button button-clear" onClick={props.addItem}>
-              + Add Item
-            </button>
-          )}
+          <button className="button button-clear" onClick={props.addItem}>
+            + Add Item
+          </button>
         </div>
       )
 
@@ -308,7 +300,7 @@
             <h2>
               <EditableText
                 text={props.title}
-                editable={props.editMode}
+                editable={true}
                 onChange={props.updateChecklistTitle}
               />
             </h2>
@@ -325,14 +317,11 @@
                 editSectionTitle={
                   (newTitle) => editSection(sectionIndex, {...section, title: newTitle})
                 }
-                editMode={props.editMode}
               />
             ))}
-            {props.editMode && (
-               <button className="button button-clear" onClick={addSection}>
-                 + Add Section
-               </button>
-            )}
+           <button className="button button-clear" onClick={addSection}>
+             + Add Section
+           </button>
           </React.Fragment>
         )
       }
@@ -355,10 +344,6 @@
             </div>
             {isOpen && (
               <div className="menu-container">
-                <button
-                  className="button button-clear"
-                  onClick={() => props.setEditMode(!props.editMode)}
-                >Enable Edit Mode</button>
                 <button
                   className="button button-clear"
                   onClick={props.newChecklist}
@@ -480,7 +465,6 @@
 
       const ChecklistPage = ({name}) => {
         const [checklist, setChecklist] = React.useState()
-        const [editMode, setEditMode] = React.useState(false);
 
         React.useEffect(() => {
           // look for checklist contents in localstorage
@@ -519,8 +503,6 @@
         return (
           <div>
             <Menu
-              editMode={editMode}
-              setEditMode={setEditMode}
               newChecklist={goToIndex}
               deleteChecklist={() => {
                 const text =
@@ -537,7 +519,6 @@
               sections={checklist.sections}
               updateSections={updateSections}
               updateChecklistTitle={updateChecklistTitle}
-              editMode={editMode}
             />
           </div>
         )
