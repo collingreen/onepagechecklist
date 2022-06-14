@@ -220,7 +220,24 @@
         }
 
         return (
-          <span onDoubleClick={() => (props.setIsEditing(true))}>{props.text}</span>
+          <React.Fragment>
+            <span onDoubleClick={() => (props.setIsEditing(true))}>{props.text}</span>
+            {props.alwaysShowDelete && props.onDelete ? (
+              <button
+                is-delete-button="true"
+                className="button button-clear button-delete"
+                onClick={(e) => {
+                  props.onDelete()
+
+                  // dont let this bubble up and be a click inside the label
+                  e.stopPropagation()
+                  e.preventDefault()
+                }}
+              >
+                X
+              </button>
+            ) : null }
+          </React.Fragment>
         )
       }
 
@@ -259,6 +276,7 @@
                   onDelete={() => props.deleteItem(i)}
                   isEditing={i === editingIndex}
                   setIsEditing={isEditing => setEditingIndex(isEditing ? i : undefined)}
+                  alwaysShowDelete={item.checked}
                 />
               </label>
             ))}
