@@ -174,13 +174,35 @@
 
         if (editing) {
           return (
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onBlur={finishEditing}
-              onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
-              autoFocus={true}
-            />
+            <React.Fragment>
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onBlur={(blurEvent) => {
+                  finishEditing()
+                  // handle delete explicitly since blur stops an immediate click event from firing
+                  if (blurEvent.relatedTarget && blurEvent.relatedTarget.attributes['is-delete-button']) {
+                    props.onDelete()
+                  }
+                }}
+                onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
+                autoFocus={true}
+              />
+              {props.onDelete ? (
+                <button
+                  is-delete-button="true"
+                  className="button button-clear button-delete"
+                  onClick={() => {
+                    // do nothing - this will cause a blur and the blur handler will do the delete
+                    // so we don't have to race these two events or let blur clobber the click
+                    //props.onDelete()
+                    //setEditing(false)
+                  }}
+                >
+                  X
+                </button>
+              ) : null }
+            </React.Fragment>
           )
         }
 
@@ -196,10 +218,8 @@
               text={props.title}
               editable={true}
               onChange={props.editSectionTitle}
+              onDelete={() => props.deleteSection()}
             />
-            <button className="button button-clear button-delete" onClick={props.deleteSection}>
-              X
-            </button>
           </h4>
           {props.items.map((item, i) => (
             <label key={i} className="checkbox-wrapper">
@@ -214,10 +234,8 @@
                 text={item.label}
                 editable={true}
                 onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
+                onDelete={() => props.deleteItem(i)}
               />
-              <button className="button button-clear button-delete" onClick={() => props.deleteItem(i)}>
-                X
-              </button>
             </label>
           ))}
           <button className="button button-clear" onClick={props.addItem}>
