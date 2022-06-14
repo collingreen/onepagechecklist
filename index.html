@@ -168,7 +168,11 @@
         const [text, setText] = React.useState(props.text)
 
         const finishEditing = () => {
-          props.onChange && props.onChange(text)
+          if (text === "" && props.onDelete) {
+            props.onDelete()
+          } else {
+            props.onChange && props.onChange(text)
+          }
           setEditing(false)
         }
 
