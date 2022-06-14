@@ -90,6 +90,14 @@
         color: #ddd
       }
 
+      .editable-text.editing {
+        min-width: 400px
+      }
+
+      .editable-text.editing.wide {
+        min-width: 650px
+      }
+
       .error {
         color: red;
       }
@@ -189,6 +197,7 @@
           return (
             <React.Fragment>
               <input
+                className={`editable-text editing ${text.length > 30 ? 'wide' : ''}`}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onFocus={(e) => {
