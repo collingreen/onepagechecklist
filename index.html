@@ -182,6 +182,10 @@
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onFocus={(e) => {
+                  // select all the content when we start editing
+                  e.target.select()
+                }}
                 onBlur={(blurEvent) => {
                   finishEditing()
                   // handle delete explicitly since blur stops an immediate click event from firing
