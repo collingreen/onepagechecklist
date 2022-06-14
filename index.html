@@ -367,8 +367,10 @@
             const key = localStorage.key(i)
             const name = reverseChecklistKey(key)
             const checklist = loadChecklist(name)
-            checklist.name = name
-            existingChecklists.push(checklist)
+            if (checklist) {
+              checklist.name = name
+              existingChecklists.push(checklist)
+            }
           }
 
           return (
