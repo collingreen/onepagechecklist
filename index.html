@@ -106,6 +106,10 @@
         CHECKLIST: 2,
       }
 
+      const generateId = () => {
+        return `${new Date().getTime()}-${Math.floor(Math.random() * 99999999)}`;
+      }
+
       const checklistKey = name => `checklist_${name}`
       const reverseChecklistKey = key => key.slice('checklist_'.length)
       const loadChecklist = name => {
@@ -127,6 +131,7 @@
       }
       const getNewChecklist = (name) => {
         return {
+          id: generateId(),
           version:  '1',
           title: `New Checklist - ${name}`,
           sections: defaultSections,
@@ -137,13 +142,14 @@
 
       const defaultSections = [
         {
+          id: generateId(),
           title: "Things to Know",
           items: [
             { label: "You can add, edit, and remove both items and sections" },
             { label: "Double click text to edit or delete" },
             { label: "All data is stored in YOUR browser - there is no server or database" },
             { label: "Can access this page online or locally and see the same data" },
-          ]
+          ].map(item => ({...item, id: generateId() }))
         }
       ]
 
@@ -239,7 +245,7 @@
               />
             </h4>
             {props.items.map((item, i) => (
-              <label key={i} className="checkbox-wrapper">
+              <label key={item.id || i} className={`checkbox-wrapper${item.checked ? ' checked' : ''}`}>
                 <input
                   type="checkbox"
                   checked={!!item.checked}
@@ -294,7 +300,10 @@
           return () => {
             const newSections = [...props.sections]
             const newSection = {...newSections[sectionIndex]}
-            newSection.items.push({ label: "New Item" })
+            newSection.items.push({
+              id: generateId(),
+              label: "New Item",
+            })
             newSections[sectionIndex] = newSection
             props.updateSections(newSections)
           }
@@ -324,6 +333,7 @@
           props.updateSections([
             ...props.sections,
             {
+              id: generateId(),
               title: "New Section",
               items: [
                 { label: "New Item" }
