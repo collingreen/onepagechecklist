@@ -78,6 +78,10 @@
         line-height: 1rem;
       }
 
+      input::placeholder {
+        color: #ddd
+      }
+
       .error {
         color: red;
       }
@@ -139,6 +143,22 @@
           ]
         }
       ]
+
+      const getExistingChecklists = () => {
+        const existingChecklists = [];
+        for (let i = 0, n = localStorage.length; i < n; i++) {
+          const key = localStorage.key(i)
+          const name = reverseChecklistKey(key)
+          const checklist = loadChecklist(name)
+          if (checklist) {
+            checklist.name = name
+            existingChecklists.push(checklist)
+          }
+        }
+        return existingChecklists
+      }
+
+      const existingChecklists = getExistingChecklists()
 
       const EditableText = (props) => {
         const [editing, setEditing] = React.useState(false)
@@ -353,124 +373,120 @@
         );
       }
 
-      const App = (props) => {
-        // decide what to do based on url
-        const params = new URLSearchParams(location.search)
+      const AppIntroPage = (props) => {
+        const [error, setError] = React.useState('')
+        const [checklistName, setChecklistName] = React.useState('')
 
-        const name = params.get('name') || 'default'
-        const appState = name === 'default' ? APP_STATE.INTRO : APP_STATE.CHECKLIST
-        const [editMode, setEditMode] = React.useState(false);
-
-        if (appState === APP_STATE.INTRO) {
-          const existingChecklists = [];
-          for (let i = 0, n = localStorage.length; i < n; i++) {
-            const key = localStorage.key(i)
-            const name = reverseChecklistKey(key)
-            const checklist = loadChecklist(name)
-            if (checklist) {
-              checklist.name = name
-              existingChecklists.push(checklist)
-            }
-          }
-
-          return (
-            <div className='container'>
-              <div className='row'>
-                <div className='column'>
-                  <h2>Welcome to One Page Checklist</h2>
-                  <p>
-                    The point of this project is to have a dead-simple way to show
-                    a checklist on your screen. I originally created this to make it
-                    easy to show visually where I was in a demo while recording a
-                    video but you can use it for whatever you like.
-                  </p>
-                  <p>
-                    You can visit this page online or open it from a file locally (no
-                    webserver necessary - you can literally download this one file and
-                    open it on your computer) but each checklist lives on YOUR computer in
-                    your browser's local storage (there is NO server anywhere). You can
-                    create or view a checklist by entering a name below.
-                  </p>
-                  <p>
-                    You can make as many checklists as you want and they will always be available
-                    for you (on THIS browser) unless you clear your local storage. No accounts,
-                    no passwords, no servers, no databases, no data breaches, no stress.
-                  </p>
-                  <p>
-                    This project is open source and contained in a single file
-                    - if you're reading this you already have the entire source
-                    but you can also access the git repository at
-                    {" "}<a href="https://github.com/collingreen/onepagechecklist">https://github.com/collingreen/onepagechecklist</a>
-                  </p>
-                </div>
-              </div>
-              <div className='row'>
-                <div className='column'>
-                  <form onSubmit={(e) => {
-                    const newName = document.getElementById('checklist_name').value
-                    const newUrl = new URL(window.location)
-                    newUrl.search = `name=${newName}`
-                    window.location.assign(newUrl.href)
-                    e.preventDefault()
-                    return false // dont let form ruin our location change
-                  }}>
-                    <fieldset>
-                      <label htmlFor='checklist_name'>Create New Checklist</label>
-                      <div className='container'>
-                        <div className='row'>
-                          <input
-                            id='checklist_name'
-                            type='text'
-                            placeholder='my next great checklist'
-                            className='column'
-                          />
-                          <div className='column column-10'/>
-                          <button
-                            className='column button button-outline'
-                          >Create/View Checklist</button>
-                        </div>
-                      </div>
-                    </fieldset>
-                  </form>
-                </div>
-              </div>
-              <div className='row'>
-                <div className='column'>
-                  <label>Your Existing Checklists:</label>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Checklist</th>
-                        <th>Last Updated</th>
-                        <th>Created</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {existingChecklists.map(checklist => (
-                        <tr key={checklist.name}>
-                          <td>
-                            <a href={`?name=${checklist.name}`}>{checklist.name}</a>
-                          </td>
-                          <td>{checklist.editedTime}</td>
-                          <td>{checklist.createdTime}</td>
-                        </tr>
-                      ))}
-                      {existingChecklists.length === 0 && (
-                        <tr>
-                          <td colspan="3">You have not yet created any checklists!</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+        return (
+          <div className='container'>
+            <div className='row'>
+              <div className='column'>
+                <h2>Welcome to One Page Checklist</h2>
+                <p>
+                  The point of this project is to have a dead-simple way to show
+                  a checklist on your screen. I originally created this to make it
+                  easy to show visually where I was in a demo while recording a
+                  video but you can use it for whatever you like.
+                </p>
+                <p>
+                  You can visit this page online or open it from a file locally (no
+                  webserver necessary - you can literally download this one file and
+                  open it on your computer) but each checklist lives on YOUR computer in
+                  your browser's local storage (there is NO server anywhere). You can
+                  create or view a checklist by entering a name below.
+                </p>
+                <p>
+                  You can make as many checklists as you want and they will always be available
+                  for you (on THIS browser) unless you clear your local storage. No accounts,
+                  no passwords, no servers, no databases, no data breaches, no stress.
+                </p>
+                <p>
+                  This project is open source and contained in a single file
+                  - if you're reading this you already have the entire source
+                  but you can also access the git repository at
+                  {" "}<a href="https://github.com/collingreen/onepagechecklist">https://github.com/collingreen/onepagechecklist</a>
+                </p>
               </div>
             </div>
-          )
-        }
+            <div className='row'>
+              <div className='column'>
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  return false
+                }}>
+                  <fieldset>
+                    <label htmlFor='checklist_name'>Create New Checklist</label>
+                    <div className='container'>
+                      <div className='row'>
+                        <input
+                          id='checklist_name'
+                          type='text'
+                          placeholder='my next great checklist'
+                          className='column'
+                          value={checklistName}
+                          onChange={(e) => setChecklistName(e.target.value)}
+                        />
+                        <div className='column column-10'/>
+                        <button
+                          className='column button button-outline'
+                          onClick={e => {
+                            if (checklistName.trim() !== '') {
+                              props.createChecklist(checklistName)
+                            } else {
+                              setError('Enter a name for your new checklist')
+                            }
+                          }}
+                        >Create/View Checklist</button>
+                      </div>
+                      {error ? <div className="error">{error}</div> : null}
+                    </div>
+                  </fieldset>
+                </form>
+              </div>
+            </div>
+            <div className='row'>
+              <div className='column'>
+                <label>Your Existing Checklists:</label>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Checklist</th>
+                      <th>Last Updated</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {props.existingChecklists.map(checklist => (
+                      <tr key={checklist.name}>
+                        <td>
+                          <a href={`?name=${checklist.name}`}>{checklist.name}</a>
+                        </td>
+                        <td>{checklist.editedTime}</td>
+                        <td>{checklist.createdTime}</td>
+                      </tr>
+                    ))}
+                    {props.existingChecklists.length === 0 && (
+                      <tr>
+                        <td colSpan="3">You have not yet created any checklists!</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
-        // look for checklist contents in localstorage
-        const startingChecklist = loadChecklist(name) || getNewChecklist(name)
-        const [checklist, setChecklist] = React.useState(startingChecklist)
+      const ChecklistPage = ({name}) => {
+        const [checklist, setChecklist] = React.useState()
+        const [editMode, setEditMode] = React.useState(false);
+
+        React.useEffect(() => {
+          // look for checklist contents in localstorage
+          const startingChecklist = loadChecklist(name) || getNewChecklist(name)
+          setChecklist(startingChecklist)
+        }, [name])
 
         const updateSections = (newSections) => {
           const newChecklist = {...checklist}
@@ -490,6 +506,14 @@
           url.search = ''
           url.hash = ''
           window.location.assign(url.href)
+        }
+
+        if (!checklist) {
+          return (
+            <div>
+              <h2>Loading checklist. Please wait a moment...</h2>
+            </div>
+          )
         }
 
         return (
@@ -517,6 +541,38 @@
             />
           </div>
         )
+      }
+
+      const App = (props) => {
+        // decide what to do based on url
+        const params = new URLSearchParams(location.search)
+        const name = params.get('name') || 'default'
+
+        const [appState, setAppState] = React.useState(APP_STATE.INTRO);
+
+        React.useEffect(() => {
+          setAppState(name === 'default' ? APP_STATE.INTRO : APP_STATE.CHECKLIST)
+        }, [name])
+
+        if (appState === APP_STATE.INTRO) {
+          return (
+            <AppIntroPage
+              existingChecklists={existingChecklists}
+              createChecklist={newName => {
+                  const newUrl = new URL(window.location)
+                  newUrl.search = `name=${newName}`
+                  // TODO: push url change instead of reload
+                  window.location.assign(newUrl.href)
+              }}
+            />
+          )
+        } else {
+          return (
+            <ChecklistPage
+              name={name}
+            />
+          )
+        }
       }
 
       const domContainer = document.querySelector('#app_container')
