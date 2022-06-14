@@ -249,9 +249,9 @@
                 <input
                   type="checkbox"
                   checked={!!item.checked}
-                  onChange={
-                    () => props.toggleItem(i)
-                  }
+                  onChange={(e) => {
+                    props.setItemChecked(i, !item.checked)
+                  }}
                 />
                 <EditableText
                   text={item.label}
@@ -272,13 +272,13 @@
       const Checklist = (props) => {
         const [isEditingTitle, setIsEditingTitle] = React.useState(false)
 
-        const getItemToggle = (sectionIndex) => {
-          return (itemIndex) => {
+        const getItemChecker = (sectionIndex) => {
+          return (itemIndex, isChecked) => {
             const newSections = [...props.sections]
             const newSection = {...newSections[sectionIndex]}
             const newItem = {
               ...newSection.items[itemIndex],
-              checked: !newSection.items[itemIndex].checked
+              checked: isChecked,
             }
             newSection.items[itemIndex] = newItem
             newSections[sectionIndex] = newSection
@@ -363,7 +363,7 @@
                 key={sectionIndex}
                 title={section.title}
                 items={section.items}
-                toggleItem={getItemToggle(sectionIndex)}
+                setItemChecked={getItemChecker(sectionIndex)}
                 addItem={getItemAdd(sectionIndex)}
                 deleteItem={getItemDelete(sectionIndex)}
                 editItem={getItemEdit(sectionIndex)}
