@@ -162,13 +162,13 @@
       const EditableText = (props) => {
         const [text, setText] = React.useState(props.text)
 
-        const finishEditing = () => {
+        const finishEditing = (editNextItem) => {
           if (text === "" && props.onDelete) {
             props.onDelete()
           } else {
             props.onChange && props.onChange(text)
           }
-          props.setIsEditing(false)
+          props.setIsEditing(false, editNextItem)
         }
 
         if (props.isEditing) {
@@ -189,7 +189,7 @@
                     props.onDelete()
                   }
                 }}
-                onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
+                onKeyDown={(e) => (e.keyCode === 13 && finishEditing(true))}
                 autoFocus={true}
               />
               {props.onDelete ? (
@@ -250,7 +250,21 @@
                   onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
                   onDelete={() => props.deleteItem(i)}
                   isEditing={i === editingIndex}
-                  setIsEditing={isEditing => setEditingIndex(isEditing ? i : undefined)}
+                  setIsEditing={(isEditing, editNext) => {
+                    let nextIndex = undefined
+                    if (!isEditing && editNext) {
+                      nextIndex = editingIndex + 1
+
+                      // if out of items but asked for next, create a new one
+                      if (nextIndex >= props.items.length) {
+                        doAddItem()
+                      }
+                    } else if (isEditing) {
+                      nextIndex = i
+                    }
+
+                    setEditingIndex(nextIndex)
+                  }}
                   alwaysShowDelete={item.checked}
                 />
               </label>
