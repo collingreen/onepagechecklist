@@ -109,7 +109,7 @@
         return {
           id: generateId(),
           version:  '1',
-          title: `New Checklist - ${name}`,
+          title: name,
           sections: defaultSections,
           createdTime: new Date(),
           editedTime: new Date(),
@@ -466,7 +466,7 @@
                     {props.existingChecklists.map(checklist => (
                       <tr key={checklist.name}>
                         <td>
-                          <a href={`?name=${checklist.name}`}>{checklist.name}</a>
+                          <a href={`?name=${checklist.name}`}>{checklist.title}</a>
                         </td>
                         <td>{checklist.editedTime}</td>
                         <td>{checklist.createdTime}</td>
