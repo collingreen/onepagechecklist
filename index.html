@@ -65,6 +65,37 @@
       .error {
         color: red;
       }
+
+      .copy-button {
+        padding: 1rem;
+        color: #9b4dca;
+      }
+
+      .copy-button:hover .icon,
+      .copy-button:hover .icon:before {
+        border-color: #606c76;
+      }
+
+      /* from https://cssicon.space/old/ */
+      .copy.icon {
+        width: 8px;
+        height: 11px;
+        border: solid 1px #9b4dca;
+        border-radius: 1px;
+        position: relative;
+      }
+      .copy.icon:before {
+        content: "";
+        display: block;
+        position: absolute;
+        left: -3px;
+        top: -3px;
+        width: 8px;
+        height: 11px;
+        border-top: solid 1px #9b4dca;
+        border-left: solid 1px #9b4dca;
+        border-radius: 1px 0 0 0;
+      }
     </style>
 
   </head>
@@ -72,11 +103,6 @@
     <div id="app_container"></div>
 
     <script type="text/babel">
-      // TODO: re-order items -- simple way? dont want to include dnd
-      // TODO: copy checklist to clipboard
-      // TODO: paste lists from clipboard
-      // TODO: autofocus AND autohighlight in edited text
-
       const APP_STATE = {
         INTRO: 1,
         CHECKLIST: 2,
@@ -128,6 +154,20 @@
           ].map(item => ({...item, id: generateId() }))
         }
       ]
+
+      const copyChecklist = (checklist) => {
+        const content = [checklist.title]
+
+        checklist.sections.forEach(section => {
+          content.push('', '', section.title, '')
+
+          section.items.forEach(item => {
+            content.push(`${item.checked ? '[X]' : ''}\t${item.label}`)
+          })
+        })
+
+        navigator.clipboard.writeText(content.join("\n"))
+      }
 
       const getExistingChecklists = () => {
         const existingChecklists = [];
@@ -191,6 +231,11 @@
                 }}
                 onKeyDown={(e) => (e.keyCode === 13 && finishEditing(true))}
                 autoFocus={true}
+                onPaste={(e) => {
+                  e.preventDefault()
+                  const content = (event.clipboardData || window.clipboardData).getData('text');
+                  props.onPaste && props.onPaste(content)
+                }}
               />
               {props.onDelete ? (
                 <DeleteButton
@@ -229,7 +274,7 @@
           <div className="section">
             <h4 className="heading">
               <EditableText
-                text={props.title}
+                text={props.title || "Untitled Section"}
                 onChange={props.editSectionTitle}
                 onDelete={() => props.deleteSection()}
                 isEditing={isEditingTitle}
@@ -266,6 +311,7 @@
                     setEditingIndex(nextIndex)
                   }}
                   alwaysShowDelete={item.checked}
+                  onPaste={(content) => props.onPaste(i, content)}
                 />
               </label>
             ))}
@@ -364,6 +410,17 @@
                 isEditing={isEditingTitle}
                 setIsEditing={setIsEditingTitle}
               />
+              {props.doCopy ? (
+                <button
+                  className="button button-clear copy-button"
+                  title="copy to clipboard"
+                  onClick={() => {
+                    props.doCopy()
+                  }}
+                >
+                  <div className="icon copy"></div>
+                </button>
+              ) : null}
             </h2>
             {props.sections.map((section, sectionIndex) => (
               <Section
@@ -378,6 +435,7 @@
                 editSectionTitle={
                   (newTitle) => editSection(sectionIndex, {...section, title: newTitle})
                 }
+                onPaste={(itemIndex, content) => props.doPaste(sectionIndex, itemIndex, content)}
               />
             ))}
            <button className="button button-clear" onClick={addSection}>
@@ -530,6 +588,87 @@
           setChecklist(newChecklist)
         }
 
+        const checkboxRegex = /\[([ xXyY]?)\]\s*(.*)/
+        const parseLine = (line) => {
+          const trimmed = line.trim()
+          let checked = false
+          let content = ''
+
+          const result = trimmed.match(checkboxRegex)
+          if (result) {
+            checked = ['x','X','y','Y'].includes(result[1])
+            content = result[2]
+          } else {
+            content = trimmed
+          }
+
+          return { checked, content }
+        }
+
+        const doPaste = (sectionIndex, itemIndex, rawContent) => {
+          if (!checklist) {
+            return
+          }
+
+          let items = []
+          let title = ''
+          let mightBeHeader = false
+          const sections = []
+          const lines = rawContent.split("\n")
+          lines.forEach(line => {
+            if (line.trim() === '') {
+              if (items.length === 1) {
+                if (mightBeHeader) {
+                  // was just a single line - use as header
+                  sections.push({id: generateId(), title, items: []})
+                  title = items[0].label
+                  items = []
+                  mightBeHeader = true
+                } else {
+                  title = items[0].label
+                  items = []
+                  mightBeHeader = true
+                }
+              } else if (items.length >= 2) {
+                sections.push({id: generateId(), title, items})
+                items = []
+                title = ''
+                mightBeHeader = false
+              }
+              return
+            }
+
+            // TODO: parse more formats
+            const { checked, content } = parseLine(line)
+            items.push({
+              id: generateId(),
+              label: content,
+              checked
+            })
+          })
+
+          if (items.length !== 0) {
+            sections.push({id: generateId(), title, items})
+          }
+
+          // add items and sections to the checklist, starting in the right spot
+          if (sections.length === 0) {
+            return
+          }
+
+          const firstSection = sections[0]
+          const clonedSections = [...checklist.sections]
+          if (sections[0].title !== '') {
+            clonedSections.splice(sectionIndex + 1, 0, ...sections)
+          } else {
+            const targetSection = clonedSections[sectionIndex]
+            targetSection.items.splice(itemIndex + 1, 0, ...sections[0].items)
+            clonedSections.splice(sectionIndex + 1, 0, ...sections.slice(1))
+          }
+
+          updateSections(clonedSections)
+        }
+
         const currentUrl = new URL(window.location)
         currentUrl.search = ''
         currentUrl.hash = ''
@@ -552,6 +691,8 @@
               sections={checklist.sections}
               updateSections={updateSections}
               updateChecklistTitle={updateChecklistTitle}
+              doCopy={() => copyChecklist(checklist)}
+              doPaste={doPaste}
             />
           </div>
         )
