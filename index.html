@@ -64,6 +64,10 @@
         font-weight: normal;
       }
 
+      .checkbox-wrapper.checked {
+        text-decoration: line-through;
+      }
+
       .checkbox-wrapper input {
         margin: 0.5rem;
         margin-top: 0;
@@ -73,13 +77,25 @@
       .button.button-delete {
         padding: 0.5rem;
         margin: 0;
-        color: red !important;
+        color: salmon;
         height: 1rem;
         line-height: 1rem;
       }
 
+      .button.button-delete:hover {
+        color: red;
+      }
+
       input::placeholder {
         color: #ddd
+      }
+
+      .editable-text.editing {
+        min-width: 400px
+      }
+
+      .editable-text.editing.wide {
+        min-width: 650px
       }
 
       .error {
@@ -100,6 +116,10 @@
       const APP_STATE = {
         INTRO: 1,
         CHECKLIST: 2,
+      }
+
+      const generateId = () => {
+        return `${new Date().getTime()}-${Math.floor(Math.random() * 99999999)}`;
       }
 
       const checklistKey = name => `checklist_${name}`
@@ -123,6 +143,7 @@
       }
       const getNewChecklist = (name) => {
         return {
+          id: generateId(),
           version:  '1',
           title: `New Checklist - ${name}`,
           sections: defaultSections,
@@ -133,14 +154,14 @@
 
       const defaultSections = [
         {
+          id: generateId(),
           title: "Things to Know",
           items: [
-            { label: "Use menu on the right to switch to edit mode" },
             { label: "You can add, edit, and remove both items and sections" },
-            { label: "In edit mode, double click text to edit" },
+            { label: "Double click text to edit or delete" },
             { label: "All data is stored in YOUR browser - there is no server or database" },
             { label: "Can access this page online or locally and see the same data" },
-          ]
+          ].map(item => ({...item, id: generateId() }))
         }
       ]
 
@@ -161,83 +182,134 @@
       const existingChecklists = getExistingChecklists()
 
       const EditableText = (props) => {
-        const [editing, setEditing] = React.useState(false)
         const [text, setText] = React.useState(props.text)
 
         const finishEditing = () => {
-          props.onChange && props.onChange(text)
-          setEditing(false)
+          if (text === "" && props.onDelete) {
+            props.onDelete()
+          } else {
+            props.onChange && props.onChange(text)
+          }
+          props.setIsEditing(false)
         }
 
-        if (editing) {
+        if (props.isEditing) {
           return (
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onBlur={finishEditing}
-              onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
-              autoFocus={true}
-            />
+            <React.Fragment>
+              <input
+                className={`editable-text editing ${text.length > 30 ? 'wide' : ''}`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onFocus={(e) => {
+                  // select all the content when we start editing
+                  e.target.select()
+                }}
+                onBlur={(blurEvent) => {
+                  finishEditing()
+                  // handle delete explicitly since blur stops an immediate click event from firing
+                  if (blurEvent.relatedTarget && blurEvent.relatedTarget.attributes['is-delete-button']) {
+                    props.onDelete()
+                  }
+                }}
+                onKeyDown={(e) => (e.keyCode === 13 && finishEditing())}
+                autoFocus={true}
+              />
+              {props.onDelete ? (
+                <button
+                  is-delete-button="true"
+                  className="button button-clear button-delete"
+                  onClick={() => {
+                    // do nothing - this will cause a blur and the blur handler will do the delete
+                    // so we don't have to race these two events or let blur clobber the click
+                    //props.onDelete()
+                    //props.setIsEditing(false)
+                  }}
+                >
+                  X
+                </button>
+              ) : null }
+            </React.Fragment>
           )
         }
 
         return (
-          <span onDoubleClick={() => (props.editable && setEditing(true))}>{props.text}</span>
+          <React.Fragment>
+            <span onDoubleClick={() => (props.setIsEditing(true))}>{props.text}</span>
+            {props.alwaysShowDelete && props.onDelete ? (
+              <button
+                is-delete-button="true"
+                className="button button-clear button-delete"
+                onClick={(e) => {
+                  props.onDelete()
+
+                  // dont let this bubble up and be a click inside the label
+                  e.stopPropagation()
+                  e.preventDefault()
+                }}
+              >
+                X
+              </button>
+            ) : null }
+          </React.Fragment>
         )
       }
 
-      const Section = (props) => (
-        <div className="section">
-          <h4 className="heading">
-            <EditableText
-              text={props.title}
-              editable={props.editMode}
-              onChange={props.editSectionTitle}
-            />
-            {props.editMode && (
-              <button className="button button-clear button-delete" onClick={props.deleteSection}>
-                X
-              </button>
-            )}
-          </h4>
-          {props.items.map((item, i) => (
-            <label key={i} className="checkbox-wrapper">
-              <input
-                type="checkbox"
-                checked={!!item.checked}
-                disabled={props.editMode}
-                onChange={
-                  () => !props.editMode && props.toggleItem(i)
-                }
-              />
+      const Section = (props) => {
+        const [isEditingTitle, setIsEditingTitle] = React.useState(false)
+        const [editingIndex, setEditingIndex] = React.useState()
+
+        const doAddItem = () => {
+          setEditingIndex(props.items.length)
+          props.addItem()
+        }
+
+        return (
+          <div className="section">
+            <h4 className="heading">
               <EditableText
-                text={item.label}
-                editable={props.editMode}
-                onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
+                text={props.title}
+                onChange={props.editSectionTitle}
+                onDelete={() => props.deleteSection()}
+                isEditing={isEditingTitle}
+                setIsEditing={setIsEditingTitle}
               />
-              {props.editMode && (
-                <button className="button button-clear button-delete" onClick={() => props.deleteItem(i)}>
-                  X
-                </button>
-              )}
-            </label>
-          ))}
-          {props.editMode && (
-            <button className="button button-clear" onClick={props.addItem}>
+            </h4>
+            {props.items.map((item, i) => (
+              <label key={item.id || i} className={`checkbox-wrapper${item.checked ? ' checked' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={!!item.checked}
+                  onChange={(e) => {
+                    props.setItemChecked(i, !item.checked)
+                  }}
+                />
+                <EditableText
+                  text={item.label}
+                  onChange={newLabel => props.editItem(i, {...item, label: newLabel})}
+                  onDelete={() => props.deleteItem(i)}
+                  isEditing={i === editingIndex}
+                  setIsEditing={isEditing => setEditingIndex(isEditing ? i : undefined)}
+                  alwaysShowDelete={item.checked}
+                />
+              </label>
+            ))}
+            <button className="button button-clear" onClick={() => doAddItem()}>
               + Add Item
             </button>
-          )}
-        </div>
-      )
+          </div>
+        )
+      }
 
       const Checklist = (props) => {
-        const getItemToggle = (sectionIndex) => {
-          return (itemIndex) => {
+        const [isEditingTitle, setIsEditingTitle] = React.useState(false)
+
+        const getItemChecker = (sectionIndex) => {
+          return (itemIndex, isChecked) => {
             const newSections = [...props.sections]
             const newSection = {...newSections[sectionIndex]}
             const newItem = {
               ...newSection.items[itemIndex],
-              checked: !newSection.items[itemIndex].checked
+              checked: isChecked,
             }
             newSection.items[itemIndex] = newItem
             newSections[sectionIndex] = newSection
@@ -259,7 +331,10 @@
           return () => {
             const newSections = [...props.sections]
             const newSection = {...newSections[sectionIndex]}
-            newSection.items.push({ label: "New Item" })
+            newSection.items.push({
+              id: generateId(),
+              label: "New Item",
+            })
             newSections[sectionIndex] = newSection
             props.updateSections(newSections)
           }
@@ -289,6 +364,7 @@
           props.updateSections([
             ...props.sections,
             {
+              id: generateId(),
               title: "New Section",
               items: [
                 { label: "New Item" }
@@ -308,8 +384,9 @@
             <h2>
               <EditableText
                 text={props.title}
-                editable={props.editMode}
                 onChange={props.updateChecklistTitle}
+                isEditing={isEditingTitle}
+                setIsEditing={setIsEditingTitle}
               />
             </h2>
             {props.sections.map((section, sectionIndex) => (
@@ -317,7 +394,7 @@
                 key={sectionIndex}
                 title={section.title}
                 items={section.items}
-                toggleItem={getItemToggle(sectionIndex)}
+                setItemChecked={getItemChecker(sectionIndex)}
                 addItem={getItemAdd(sectionIndex)}
                 deleteItem={getItemDelete(sectionIndex)}
                 editItem={getItemEdit(sectionIndex)}
@@ -325,14 +402,11 @@
                 editSectionTitle={
                   (newTitle) => editSection(sectionIndex, {...section, title: newTitle})
                 }
-                editMode={props.editMode}
               />
             ))}
-            {props.editMode && (
-               <button className="button button-clear" onClick={addSection}>
-                 + Add Section
-               </button>
-            )}
+           <button className="button button-clear" onClick={addSection}>
+             + Add Section
+           </button>
           </React.Fragment>
         )
       }
@@ -355,10 +429,6 @@
             </div>
             {isOpen && (
               <div className="menu-container">
-                <button
-                  className="button button-clear"
-                  onClick={() => props.setEditMode(!props.editMode)}
-                >Enable Edit Mode</button>
                 <button
                   className="button button-clear"
                   onClick={props.newChecklist}
@@ -480,7 +550,6 @@
 
       const ChecklistPage = ({name}) => {
         const [checklist, setChecklist] = React.useState()
-        const [editMode, setEditMode] = React.useState(false);
 
         React.useEffect(() => {
           // look for checklist contents in localstorage
@@ -519,8 +588,6 @@
         return (
           <div>
             <Menu
-              editMode={editMode}
-              setEditMode={setEditMode}
               newChecklist={goToIndex}
               deleteChecklist={() => {
                 const text =
@@ -537,7 +604,6 @@
               sections={checklist.sections}
               updateSections={updateSections}
               updateChecklistTitle={updateChecklistTitle}
-              editMode={editMode}
             />
           </div>
         )
