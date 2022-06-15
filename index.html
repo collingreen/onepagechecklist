@@ -411,6 +411,12 @@
         )
       }
 
+      const Breadcrumb = (props) => (
+        <div>
+          <a href={props.url}>Back to Checklists</a>
+        </div>
+      )
+
       const Menu = (props) => {
         const [isOpen, setIsOpen] = React.useState(false);
 
@@ -429,10 +435,6 @@
             </div>
             {isOpen && (
               <div className="menu-container">
-                <button
-                  className="button button-clear"
-                  onClick={props.newChecklist}
-                >Create New Checklist</button>
                 <button
                   className="button button-clear error"
                   onClick={props.deleteChecklist}
@@ -570,12 +572,10 @@
           setChecklist(newChecklist)
         }
 
-        const goToIndex = () => {
-          const url = new URL(window.location)
-          url.search = ''
-          url.hash = ''
-          window.location.assign(url.href)
-        }
+        const currentUrl = new URL(window.location)
+        currentUrl.search = ''
+        currentUrl.hash = ''
+        const indexUrl = currentUrl.href
 
         if (!checklist) {
           return (
@@ -588,7 +588,6 @@
         return (
           <div>
             <Menu
-              newChecklist={goToIndex}
               deleteChecklist={() => {
                 const text =
                   'Are you sure you want to delete your checklist? This cannot be undone.'
@@ -598,6 +597,7 @@
                 }
               }}
             />
+            <Breadcrumb url={indexUrl}/>
             <Checklist
               name={name}
               title={checklist.title || name}
